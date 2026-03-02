@@ -7,13 +7,13 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup } from "@/components/ui/toggle-group";
-import { Separator } from "@/components/ui/separator";
-import { scanMarketing, detectPolicyGaps } from "@/lib/api";
-import { ScanLine } from "lucide-react";
-import type { Violation, PolicyGap } from "@/lib/types";
+import { FileDropZone } from "@/components/scanner/file-drop-zone";
+import { scanMarketing, detectPolicyGaps, scanMarketingFile, detectPolicyGapsFile } from "@/lib/api";
+import { ScanLine, FileText, ShieldAlert, ClipboardPaste, Upload } from "lucide-react";
+import type { Violation, PolicyGap, FileSourceMeta } from "@/lib/types";
 
 type ScanType = "marketing" | "policy-gaps";
+type InputMode = "text" | "file";
 
 const SEVERITY_VARIANT: Record<string, "critical" | "warning" | "info" | "success" | "muted"> = {
   CRITICAL: "critical",
@@ -29,22 +29,35 @@ export default function ScannerPage() {
   const initialType = searchParams.get("type") === "gaps" ? "policy-gaps" : "marketing";
 
   const [scanType, setScanType] = useState<ScanType>(initialType);
+  const [inputMode, setInputMode] = useState<InputMode>("text");
   const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
 
   async function runScan() {
-    if (!text.trim()) return;
     setLoading(true);
     setError("");
     setResult(null);
 
     try {
-      const data =
-        scanType === "marketing"
-          ? await scanMarketing(text)
-          : await detectPolicyGaps(text);
+      let data;
+      if (inputMode === "file" && file) {
+        data =
+          scanType === "marketing"
+            ? await scanMarketingFile(file)
+            : await detectPolicyGapsFile(file);
+      } else if (inputMode === "text" && text.trim()) {
+        data =
+          scanType === "marketing"
+            ? await scanMarketing(text)
+            : await detectPolicyGaps(text);
+      } else {
+        setError("Please provide text or upload a file to scan.");
+        setLoading(false);
+        return;
+      }
       setResult(data as unknown as Record<string, unknown>);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Scan failed");
@@ -53,43 +66,83 @@ export default function ScannerPage() {
     }
   }
 
+  const canScan = inputMode === "file" ? !!file : !!text.trim();
   const violations = (result?.violations as Violation[]) || [];
   const gaps = (result?.gaps as PolicyGap[]) || [];
   const summary = result?.summary as Record<string, unknown> | undefined;
+  const source = result?.source as FileSourceMeta | undefined;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Glass Box Scanner"
         subtitle="SEC Rule 206(4)-1 marketing compliance & Rule 206(4)-7 policy gap detection"
-      />
-
-      {/* Scan type toggle */}
-      <ToggleGroup
-        options={[
-          { value: "marketing", label: "Marketing Scan" },
-          { value: "policy-gaps", label: "Policy Gaps" },
-        ]}
-        value={scanType}
-        onChange={(v) => setScanType(v as ScanType)}
-      />
-
-      {/* Input */}
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={
-          scanType === "marketing"
-            ? "Paste marketing text here (emails, website copy, social posts, brochures)..."
-            : "Paste your compliance policies here..."
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant={scanType === "marketing" ? "primary" : "ghost"}
+              size="sm"
+              icon={<ScanLine className="h-4 w-4" />}
+              onClick={() => setScanType("marketing")}
+            >
+              Marketing Scan
+            </Button>
+            <Button
+              variant={scanType === "policy-gaps" ? "primary" : "ghost"}
+              size="sm"
+              icon={<ShieldAlert className="h-4 w-4" />}
+              onClick={() => setScanType("policy-gaps")}
+            >
+              Policy Gaps
+            </Button>
+          </div>
         }
-        rows={8}
       />
+
+      {/* Input mode buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant={inputMode === "text" ? "secondary" : "ghost"}
+          size="sm"
+          icon={<ClipboardPaste className="h-4 w-4" />}
+          onClick={() => setInputMode("text")}
+        >
+          Paste Text
+        </Button>
+        <Button
+          variant={inputMode === "file" ? "secondary" : "ghost"}
+          size="sm"
+          icon={<Upload className="h-4 w-4" />}
+          onClick={() => setInputMode("file")}
+        >
+          Upload File
+        </Button>
+      </div>
+
+      {/* Input area */}
+      {inputMode === "text" ? (
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            scanType === "marketing"
+              ? "Paste marketing text here (emails, website copy, social posts, brochures)..."
+              : "Paste your compliance policies here..."
+          }
+          rows={8}
+        />
+      ) : (
+        <FileDropZone
+          onFileSelected={setFile}
+          disabled={loading}
+          uploading={loading}
+        />
+      )}
 
       <Button
         onClick={runScan}
         loading={loading}
-        disabled={!text.trim()}
+        disabled={!canScan}
         icon={<ScanLine className="h-4 w-4" />}
       >
         {loading ? "Analyzing..." : "Run Scan"}
@@ -105,6 +158,18 @@ export default function ScannerPage() {
       {/* Results */}
       {result && (
         <div className="space-y-4">
+          {/* File source info */}
+          {source && (
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-accent-blue" />
+              <Badge variant="info" size="sm">{source.filename}</Badge>
+              <Badge variant="muted" size="sm">{source.filetype}</Badge>
+              <span className="text-caption-1 text-label-tertiary">
+                {source.chars_extracted.toLocaleString()} characters extracted
+              </span>
+            </div>
+          )}
+
           {/* Summary */}
           {summary && (
             <GlassCard padding="lg">
@@ -154,7 +219,7 @@ export default function ScannerPage() {
                       &ldquo;{v.text_excerpt}&rdquo;
                     </p>
                     <p className="text-footnote text-label-secondary mb-1">{v.explanation}</p>
-                    <p className="text-footnote text-accent-green">✦ {v.suggestion}</p>
+                    <p className="text-footnote text-accent-green">{v.suggestion}</p>
                   </GlassCard>
                 ))}
               </div>
@@ -178,7 +243,7 @@ export default function ScannerPage() {
                       </span>
                     </div>
                     <p className="text-footnote text-label-secondary mb-1">{g.description}</p>
-                    <p className="text-footnote text-accent-green">✦ {g.recommendation}</p>
+                    <p className="text-footnote text-accent-green">{g.recommendation}</p>
                   </GlassCard>
                 ))}
               </div>

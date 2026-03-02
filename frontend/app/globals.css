@@ -14,8 +14,9 @@
     --label-tertiary: 99 99 102;
     --label-quaternary: 72 72 74;
 
-    --accent-blue: 10 132 255;
-    --accent-green: 48 209 88;
+    /* Viper green brand — matches cobra shield logo */
+    --accent-blue: 56 196 66;
+    --accent-green: 45 212 155;
     --accent-orange: 255 159 10;
     --accent-red: 255 69 58;
     --accent-purple: 175 82 222;
@@ -33,8 +34,9 @@
     --label-tertiary: 99 99 102;
     --label-quaternary: 142 142 147;
 
-    --accent-blue: 0 122 255;
-    --accent-green: 52 199 89;
+    /* Viper green brand — deeper for light backgrounds */
+    --accent-blue: 34 162 46;
+    --accent-green: 20 184 130;
     --accent-orange: 255 149 0;
     --accent-red: 255 59 48;
     --accent-purple: 175 82 222;
@@ -55,7 +57,7 @@
   }
 
   ::selection {
-    background-color: rgb(var(--accent-blue) / 0.3);
+    background-color: rgb(var(--accent-blue) / 0.35);
   }
 }
 

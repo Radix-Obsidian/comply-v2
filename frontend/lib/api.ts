@@ -2,8 +2,10 @@ import type {
   AIInsightsResponse,
   AuditResponse,
   CalendarEvent,
+  CalendarEventCreate,
   DashboardStats,
   GeneratedDocument,
+  ICSImportPreview,
   MarketingScanResult,
   Policy,
   PolicyCreate,
@@ -96,6 +98,66 @@ export function getUpcomingDeadlines(days: number = 90) {
   return api<CalendarEvent[]>(`/api/calendar/upcoming?days=${days}`);
 }
 
+export function createCalendarEvent(data: CalendarEventCreate) {
+  return api<CalendarEvent>("/api/calendar/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteCalendarEvent(id: string) {
+  return api(`/api/calendar/${id}`, { method: "DELETE" });
+}
+
+export async function importICSPreview(file: File): Promise<ICSImportPreview> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/calendar/ics/import?dry_run=true`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `Import preview failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function importICSCommit(file: File): Promise<{ imported: number; skipped_duplicates: number; event_ids: string[] }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/calendar/ics/import?dry_run=false`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `Import failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function exportICS(filters?: { status?: string; event_type?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.event_type) params.set("event_type", filters.event_type);
+  const qs = params.toString();
+  const res = await fetch(`${API_BASE}/api/calendar/ics/export${qs ? `?${qs}` : ""}`);
+  if (!res.ok) throw new Error("Export failed");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "comply-calendar.ics";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function getICSFeedUrl() {
+  const base = typeof window !== "undefined" ? window.location.origin : API_BASE;
+  return `${base}/api/calendar/ics/feed`;
+}
+
 // ---- Workflow ----
 
 export function getWorkflowTasks(status?: string) {
@@ -133,6 +195,34 @@ export function detectPolicyGaps(text: string) {
     method: "POST",
     body: JSON.stringify({ text }),
   });
+}
+
+export async function scanMarketingFile(file: File): Promise<MarketingScanResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/glassbox/scan-marketing-file`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `Scan failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function detectPolicyGapsFile(file: File): Promise<PolicyGapResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/glassbox/detect-policy-gaps-file`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `Scan failed: ${res.status}`);
+  }
+  return res.json();
 }
 
 // ---- Documents ----

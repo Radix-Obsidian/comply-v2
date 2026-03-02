@@ -95,8 +95,38 @@ export interface CalendarEvent {
   description: string;
   event_type: string;
   due_date: string;
+  end_date: string | null;
   status: string;
   policy_id: string | null;
+  categories: string | null;
+  ics_uid: string | null;
+}
+
+export interface CalendarEventCreate {
+  title: string;
+  event_type: string;
+  due_date: string;
+  end_date?: string;
+  description?: string;
+  policy_id?: string;
+  categories?: string;
+}
+
+export interface ICSParsedEvent {
+  uid: string;
+  title: string;
+  description: string;
+  start: string;
+  end: string | null;
+  categories: string;
+  already_exists: boolean;
+}
+
+export interface ICSImportPreview {
+  events: ICSParsedEvent[];
+  total: number;
+  new: number;
+  duplicates: number;
 }
 
 // ---- Workflow ----
@@ -138,6 +168,12 @@ export interface ScanSummary {
   overall_risk: "LOW" | "MEDIUM" | "HIGH";
 }
 
+export interface FileSourceMeta {
+  filename: string;
+  filetype: string;
+  chars_extracted: number;
+}
+
 export interface MarketingScanResult {
   scan_id: string;
   scan_type: string;
@@ -145,6 +181,7 @@ export interface MarketingScanResult {
   violations: Violation[];
   summary: ScanSummary;
   note?: string;
+  source?: FileSourceMeta;
 }
 
 export interface PolicyGap {
@@ -169,6 +206,7 @@ export interface PolicyGapResult {
     compliance_score: number;
   };
   note?: string;
+  source?: FileSourceMeta;
 }
 
 // ---- Documents ----

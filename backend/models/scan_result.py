@@ -33,3 +33,9 @@ class ScanSummary(BaseModel):
     warnings: int = 0
     info: int = 0
     overall_risk: str = "UNKNOWN"
+
+
+class FileSourceMeta(BaseModel):
+    filename: str
+    filetype: str
+    chars_extracted: int

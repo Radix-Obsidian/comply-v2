@@ -45,7 +45,9 @@ def init_db():
             input_text TEXT NOT NULL,
             result_json TEXT NOT NULL,
             scanned_at TEXT NOT NULL,
-            scanned_by TEXT
+            scanned_by TEXT,
+            source_filename TEXT,
+            source_filetype TEXT
         );
 
         CREATE TABLE IF NOT EXISTS audit_log (
@@ -73,8 +75,11 @@ def init_db():
             description TEXT,
             event_type TEXT NOT NULL,
             due_date TEXT NOT NULL,
+            end_date TEXT,
             status TEXT DEFAULT 'pending',
             policy_id TEXT,
+            categories TEXT,
+            ics_uid TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY (policy_id) REFERENCES policies(id)
         );
@@ -102,5 +107,17 @@ def init_db():
             processed_at TEXT
         );
     """)
+    # Migrate existing databases: add new columns safely
+    for stmt in [
+        "ALTER TABLE scan_results ADD COLUMN source_filename TEXT",
+        "ALTER TABLE scan_results ADD COLUMN source_filetype TEXT",
+        "ALTER TABLE calendar_events ADD COLUMN end_date TEXT",
+        "ALTER TABLE calendar_events ADD COLUMN categories TEXT",
+        "ALTER TABLE calendar_events ADD COLUMN ics_uid TEXT",
+    ]:
+        try:
+            conn.execute(stmt)
+        except Exception:
+            pass  # Column already exists
     conn.commit()
     conn.close()

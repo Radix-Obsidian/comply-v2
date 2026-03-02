@@ -11,6 +11,7 @@ import {
   Moon,
   Activity,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
@@ -38,9 +39,13 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="h-14 flex items-center px-4 gap-3 shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-accent-blue flex items-center justify-center shrink-0">
-          <ShieldCheck className="h-4 w-4 text-white" />
-        </div>
+        <Image
+          src="/comply-logo.png"
+          alt="Comply"
+          width={32}
+          height={32}
+          className="w-8 h-8 rounded-lg shrink-0"
+        />
         <span className="text-headline text-label-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
           Comply
         </span>
