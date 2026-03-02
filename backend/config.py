@@ -11,7 +11,10 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:11b")
 
 # Server
 API_PORT = int(os.getenv("API_PORT", "8100"))
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+).split(",")
 
 # Auth
 JWT_SECRET = os.getenv("JWT_SECRET", "comply-v2-local-dev-secret")
