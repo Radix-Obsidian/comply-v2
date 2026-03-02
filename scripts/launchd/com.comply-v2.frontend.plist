@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.comply-v2.frontend</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__NODE_BIN__</string>
+        <string>/opt/comply-v2/frontend/node_modules/.bin/next</string>
+        <string>start</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/opt/comply-v2/frontend</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NEXT_PUBLIC_API_URL</key>
+        <string>http://localhost:8100</string>
+        <key>PORT</key>
+        <string>3000</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    <key>StandardOutPath</key>
+    <string>/opt/comply-v2/logs/frontend.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/comply-v2/logs/frontend.err</string>
+</dict>
+</plist>

@@ -1,0 +1,39 @@
+services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8100:8100"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:11b}
+      - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-}
+      - JWT_SECRET=${JWT_SECRET:-comply-v2-local-secret}
+      - RETENTION_DAYS=2555
+      - PII_SCAN_ENABLED=true
+      - AUDIT_LOG_ENABLED=true
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - ollama
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8100
+    depends_on:
+      - backend
+
+volumes:
+  ollama_data:
