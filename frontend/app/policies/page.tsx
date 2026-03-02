@@ -1,131 +1,146 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { PageHeader } from "@/components/layout/page-header";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { createPolicy } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
+import { Plus, FileText } from "lucide-react";
+import type { Policy } from "@/lib/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8100";
-
-interface Policy {
-  id: string;
-  title: string;
-  category: string;
-  content: string;
-  version: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-const statusColors: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-  active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  archived: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+const STATUS_VARIANT: Record<string, "muted" | "success" | "warning"> = {
+  draft: "muted",
+  active: "success",
+  archived: "warning",
 };
 
+const CATEGORIES = [
+  "marketing", "trading", "custody", "privacy",
+  "code_of_ethics", "business_continuity", "valuation", "other",
+];
+
 export default function PoliciesPage() {
-  const [policies, setPolicies] = useState<Policy[]>([]);
+  const { data: policies, isLoading, mutate } = useSWR<Policy[]>("/api/policies/");
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("marketing");
   const [content, setContent] = useState("");
-  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  async function loadPolicies() {
-    try {
-      const res = await fetch(`${API_BASE}/api/policies/`);
-      const data = await res.json();
-      setPolicies(data);
-    } catch (e) {
-      setError("Failed to load policies. Is the backend running?");
-    }
-  }
-
-  useEffect(() => { loadPolicies(); }, []);
-
-  async function createPolicy(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/policies/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, category, content }),
-      });
-      if (!res.ok) throw new Error("Failed to create policy");
-      setTitle(""); setCategory("marketing"); setContent("");
+      await createPolicy({ title, category, content });
+      setTitle("");
+      setCategory("marketing");
+      setContent("");
       setShowForm(false);
-      loadPolicies();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      mutate();
+    } catch {
+      // Error handled silently
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Policies</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          {showForm ? "Cancel" : "New Policy"}
-        </button>
-      </div>
-
-      {error && (
-        <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
-          {error}
-        </div>
-      )}
-
-      {showForm && (
-        <form onSubmit={createPolicy} className="mb-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 space-y-4">
-          <input
-            value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Policy title"
-            required
-            className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-          />
-          <select
-            value={category} onChange={(e) => setCategory(e.target.value)}
-            className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+    <div className="space-y-6">
+      <PageHeader
+        title="Policies"
+        subtitle="Manage your compliance policies and procedures"
+        actions={
+          <Button
+            variant={showForm ? "ghost" : "primary"}
+            size="sm"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setShowForm(!showForm)}
           >
-            <option value="marketing">Marketing</option>
-            <option value="trading">Trading</option>
-            <option value="custody">Custody</option>
-            <option value="privacy">Privacy</option>
-            <option value="code_of_ethics">Code of Ethics</option>
-            <option value="business_continuity">Business Continuity</option>
-            <option value="valuation">Valuation</option>
-            <option value="other">Other</option>
-          </select>
-          <textarea
-            value={content} onChange={(e) => setContent(e.target.value)} placeholder="Policy content..."
-            required rows={8}
-            className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-y"
-          />
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
-            Create Policy
-          </button>
-        </form>
+            {showForm ? "Cancel" : "New Policy"}
+          </Button>
+        }
+      />
+
+      {/* Create form */}
+      {showForm && (
+        <GlassCard padding="lg">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Policy title"
+              required
+            />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl bg-surface-secondary/60 border border-white/[0.06] px-4 py-2.5 text-callout text-label-primary focus:outline-none focus:ring-2 focus:ring-accent-blue/40"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                </option>
+              ))}
+            </select>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Policy content..."
+              required
+              rows={8}
+            />
+            <Button type="submit" loading={saving}>
+              Create Policy
+            </Button>
+          </form>
+        </GlassCard>
       )}
 
-      {policies.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400">No policies yet. Create your first policy to get started.</p>
+      {/* Policy list */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <GlassCard key={i} padding="md">
+              <Skeleton className="h-5 w-48 mb-2" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-72 mt-1" />
+            </GlassCard>
+          ))}
+        </div>
+      ) : !policies || policies.length === 0 ? (
+        <GlassCard padding="lg" className="text-center">
+          <FileText className="h-8 w-8 text-label-quaternary mx-auto mb-2 opacity-60" />
+          <p className="text-subheadline text-label-tertiary">
+            No policies yet. Create your first policy to get started.
+          </p>
+        </GlassCard>
       ) : (
         <div className="space-y-3">
           {policies.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-medium text-gray-900 dark:text-white">{p.title}</h3>
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[p.status] || statusColors.draft}`}>
+            <GlassCard key={p.id} padding="md" hover>
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-headline text-label-primary">{p.title}</h3>
+                <Badge variant={STATUS_VARIANT[p.status] || "muted"} size="sm">
                   {p.status}
-                </span>
-                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-xs">
-                  {p.category}
-                </span>
-                <span className="text-xs text-gray-400">v{p.version}</span>
+                </Badge>
+                <Badge variant="info" size="sm">
+                  {p.category.replace(/_/g, " ")}
+                </Badge>
+                <span className="text-caption-2 text-label-quaternary">v{p.version}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{p.content}</p>
-              <p className="text-xs text-gray-400 mt-1">Updated: {new Date(p.updated_at).toLocaleDateString()}</p>
-            </div>
+              <p className="text-footnote text-label-secondary line-clamp-2">
+                {p.content}
+              </p>
+              <p className="text-caption-1 text-label-quaternary mt-2">
+                Updated {formatDate(p.updated_at)}
+              </p>
+            </GlassCard>
           ))}
         </div>
       )}

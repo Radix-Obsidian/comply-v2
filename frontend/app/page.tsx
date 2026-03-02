@@ -1,90 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useInsights } from "@/lib/hooks/use-insights";
+import { CompliancePulse } from "@/components/ai/compliance-pulse";
+import { InsightsFeed } from "@/components/ai/insights-feed";
+import { ActiveWorkflows } from "@/components/dashboard/active-workflows";
+import { UpcomingDeadlines } from "@/components/dashboard/upcoming-deadlines";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { Separator } from "@/components/ui/separator";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8100";
-
-interface DashboardStats {
-  compliance_score: number;
-  policies: { total: number; active: number; draft: number };
-  attestations: { total: number; expiring_30d: number };
-  scans: { total: number; recent_7d: number };
-  pending_tasks: number;
-}
-
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="text-3xl font-bold mt-1 text-gray-900 dark:text-white">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
+    <h2 className="text-caption-2 uppercase tracking-wider text-label-quaternary mb-3">
+      {children}
+    </h2>
   );
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/dashboard/stats`)
-      .then((r) => r.json())
-      .then(setStats)
-      .catch((e) => setError(e.message));
-  }, []);
-
-  if (error) {
-    return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Dashboard</h1>
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
-          Failed to load dashboard: {error}. Is the backend running?
-        </div>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-gray-500">Loading...</p>
-      </div>
-    );
-  }
+  const { data, isLoading, error } = useInsights("owner");
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Compliance Dashboard</h1>
+    <div className="space-y-8">
+      {/* Section 1: Compliance Pulse (Hero) */}
+      <CompliancePulse
+        score={data?.compliance_score ?? 0}
+        trend={data?.trend ?? "stable"}
+        trendDelta={data?.trend_delta ?? 0}
+        aiSummary={
+          data?.ai_summary ??
+          "Connecting to compliance engine..."
+        }
+        loading={isLoading}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          label="Compliance Score"
-          value={`${stats.compliance_score}%`}
-          sub="Based on policies, attestations, and scans"
+      {/* Section 2: AI Insights Feed */}
+      <section>
+        <SectionLabel>AI Insights</SectionLabel>
+        <InsightsFeed
+          insights={data?.insights ?? []}
+          loading={isLoading}
         />
-        <StatCard
-          label="Active Policies"
-          value={stats.policies.active}
-          sub={`${stats.policies.draft} drafts / ${stats.policies.total} total`}
-        />
-        <StatCard
-          label="Attestations"
-          value={stats.attestations.total}
-          sub={`${stats.attestations.expiring_30d} expiring in 30 days`}
-        />
-        <StatCard
-          label="Scans (7d)"
-          value={stats.scans.recent_7d}
-          sub={`${stats.scans.total} total scans`}
-        />
-      </div>
+      </section>
 
-      {stats.pending_tasks > 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-yellow-700 dark:text-yellow-400">
-          {stats.pending_tasks} pending workflow task{stats.pending_tasks > 1 ? "s" : ""} require attention.
-        </div>
-      )}
+      <Separator />
+
+      {/* Section 3: Active Workflows */}
+      <section>
+        <SectionLabel>Active Workflows</SectionLabel>
+        <ActiveWorkflows />
+      </section>
+
+      <Separator />
+
+      {/* Section 4: Upcoming Deadlines */}
+      <section>
+        <SectionLabel>Upcoming Deadlines</SectionLabel>
+        <UpcomingDeadlines />
+      </section>
+
+      <Separator />
+
+      {/* Section 5: Quick Actions */}
+      <section>
+        <SectionLabel>Quick Actions</SectionLabel>
+        <QuickActions />
+      </section>
     </div>
   );
 }
